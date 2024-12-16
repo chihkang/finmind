@@ -14,6 +14,110 @@ load_dotenv()
 
 scheduler = BackgroundScheduler()
 
+def initialize_api():
+    """初始化並登入 FinMind API"""
+    api_token = os.getenv('FINMIND_TOKEN')
+    if not api_token:
+        print("錯誤：找不到 FINMIND_TOKEN 環境變數")
+        return None
+
+    api = DataLoader()
+    try:
+        api.login_by_token(api_token=api_token)
+        print("Token 登入成功！")
+        return api
+    except Exception as e:
+        print(f"登入失敗: {e}")
+        return None
+
+def get_taiwan_stock_price(api: DataLoader, stock_id: str) -> float:
+    """獲取台股價格"""
+    end_date = datetime.now().strftime("%Y-%m-%d")
+    start_date = (datetime.now() - timedelta(days=5)).strftime("%Y-%m-%d")
+    
+    df = api.taiwan_stock_daily(
+        stock_id=stock_id,
+        start_date=start_date,
+        end_date=end_date
+    )
+    
+    return df.iloc[-1]['close'] if not df.empty else None
+
+def process_single_stock(api: DataLoader, stock: dict) -> dict:
+    """處理單一股票的價格更新"""
+    stock_name = stock['name']
+    stock_id = stock_name.split(':')[0]
+    is_us_stock = not any(stock_name.endswith(suffix) for suffix in (':TPE', ':TWO'))
+    
+    try:
+        # 根據市場類型獲取價格
+        close_price = get_us_stock_price(api, stock_id) if is_us_stock else get_taiwan_stock_price(api, stock_id)
+        
+        if close_price is not None:
+            print(f"\n準備更新股票 {stock_id} ({stock['alias']}) 的價格到 {close_price}")
+            update_success = update_stock_price(stock['_id'], close_price)
+            update_status = '更新成功' if update_success else '更新失敗'
+            print(f"{'✓' if update_success else '✗'} {update_status}：{stock_id} 價格 {close_price}")
+            
+            return {
+                '股票代碼': stock_id,
+                '名稱': stock['alias'],
+                '市場': 'US' if is_us_stock else 'TW',
+                '日期': datetime.now().strftime("%Y-%m-%d"),
+                '收盤價': close_price,
+                '價格更新狀態': update_status
+            }
+        else:
+            print(f"沒有找到 {stock_id} 的資料")
+            return None
+            
+    except Exception as e:
+        print(f"處理 {stock_id} 時發生錯誤: {e}")
+        return None
+
+def display_results(stock_data: list):
+    """顯示更新結果"""
+    if not stock_data:
+        print("沒有獲取到任何股票資料")
+        return
+        
+    print("\n股票最新報價:")
+    print("-" * 80)
+    df_all = pd.DataFrame(stock_data)
+    pd.set_option('display.float_format', lambda x: '%.2f' % x)
+    pd.set_option('display.width', None)
+    pd.set_option('display.max_rows', None)
+    print(df_all.to_string(index=False))
+    print("-" * 80)
+
+def get_stock_prices():
+    """獲取所有股票的最新價格並更新到 API"""
+    print(f"開始執行股票價格更新任務: {datetime.now()}")
+    
+    # 初始化 API
+    api = initialize_api()
+    if not api:
+        return None
+    
+    # 獲取股票列表
+    stock_list = get_stock_list()
+    if not stock_list:
+        print("沒有找到符合條件的股票")
+        return None
+    
+    # 處理每支股票
+    all_stock_data = []
+    for stock in stock_list:
+        result = process_single_stock(api, stock)
+        if result:
+            all_stock_data.append(result)
+    
+    # 顯示結果
+    display_results(all_stock_data)
+    
+    print(f"任務完成時間: {datetime.now()}")
+    return all_stock_data
+
 def is_dst():
     """
     判斷現在是否為夏令時間
@@ -198,97 +302,6 @@ def get_us_stock_price(api: DataLoader, stock_id: str) -> float:
     except Exception as e:
         print(f"發生未預期的錯誤: {e}")
         return None
-
-def get_stock_prices():
-    """獲取所有股票的最新價格並更新到 API"""
-    print(f"開始執行股票價格更新任務: {datetime.now()}")
-    
-    api_token = os.getenv('FINMIND_TOKEN')
-    if not api_token:
-        print("錯誤：找不到 FINMIND_TOKEN 環境變數")
-        return
-
-    api = DataLoader()
-    try:
-        api.login_by_token(api_token=api_token)
-        print("Token 登入成功！")
-    except Exception as e:
-        print(f"登入失敗: {e}")
-        return
-    
-    stock_list = get_stock_list()
-    if not stock_list:
-        print("沒有找到符合條件的股票")
-        return
-    
-    all_stock_data = []
-    
-    for stock in stock_list:
-        stock_name = stock['name']
-        stock_id = stock_name.split(':')[0]
-        
-        # 判斷是台股還是美股
-        is_us_stock = not any(stock_name.endswith(suffix) for suffix in (':TPE', ':TWO'))
-        
-        try:
-            if is_us_stock:
-                # 處理美股
-                close_price = get_us_stock_price(api, stock_id)
-            else:
-                # 處理台股
-                end_date = datetime.now().strftime("%Y-%m-%d")
-                start_date = (datetime.now() - timedelta(days=5)).strftime("%Y-%m-%d")
-                
-                df = api.taiwan_stock_daily(
-                    stock_id=stock_id,
-                    start_date=start_date,
-                    end_date=end_date
-                )
-                
-                if not df.empty:
-                    close_price = df.iloc[-1]['close']
-                else:
-                    close_price = None
-            
-            if close_price is not None:
-                print(f"\n準備更新股票 {stock_id} ({stock['alias']}) 的價格到 {close_price}")
-                if update_stock_price(stock['_id'], close_price):
-                    print(f"✓ 成功更新股票 {stock_id} 的價格到 {close_price}")
-                    update_status = '更新成功'
-                else:
-                    print(f"✗ 更新股票 {stock_id} 的價格失敗")
-                    update_status = '更新失敗'
-                
-                stock_data = {
-                    '股票代碼': stock_id,
-                    '名稱': stock['alias'],
-                    '市場': 'US' if is_us_stock else 'TW',
-                    '日期': datetime.now().strftime("%Y-%m-%d"),
-                    '收盤價': close_price,
-                    '價格更新狀態': update_status
-                }
-                all_stock_data.append(stock_data)
-            else:
-                print(f"沒有找到 {stock_id} 的資料")
-                
-        except Exception as e:
-            print(f"處理 {stock_id} 時發生錯誤: {e}")
-            continue
-    
-    if all_stock_data:
-        print("\n股票最新報價:")
-        print("-" * 80)
-        df_all = pd.DataFrame(all_stock_data)
-        pd.set_option('display.float_format', lambda x: '%.2f' % x)
-        pd.set_option('display.width', None)
-        pd.set_option('display.max_rows', None)
-        print(df_all.to_string(index=False))
-        print("-" * 80)
-    else:
-        print("沒有獲取到任何股票資料")
-    
-    print(f"任務完成時間: {datetime.now()}")
-    return all_stock_data
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
