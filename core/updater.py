@@ -1,10 +1,11 @@
 from typing import List, Dict, Optional
 import pandas as pd
-from datetime import datetime
 from core.market import MarketTimeChecker
 from core.api import StockAPI
 from config.constants import TPE_SUFFIX, TWO_SUFFIX
 from utils.logger import get_logger
+# 在所有需要使用時間的模組中
+from utils.time_utils import get_current_time
 
 logger = get_logger(__name__)
 
@@ -22,10 +23,7 @@ class StockPriceUpdater:
         try:
             # 根據市場類型獲取價格
             if is_us_stock:
-                close_price = self.api.get_us_stock_price(
-                    stock_id,
-                    self.market_checker.is_us_market_hours()
-                )
+                close_price = self.api.get_us_stock_price(stock_id)
             else:
                 close_price = self.api.get_taiwan_stock_price(stock_id)
             
@@ -35,11 +33,12 @@ class StockPriceUpdater:
                 update_status = '更新成功' if update_success else '更新失敗'
                 logger.info(f"{'✓' if update_success else '✗'} {update_status}：{stock_id} 價格 {close_price}")
                 
+                current_time = get_current_time()
                 return {
                     '股票代碼': stock_id,
                     '名稱': stock['alias'],
                     '市場': 'US' if is_us_stock else 'TW',
-                    '日期': datetime.now().strftime("%Y-%m-%d"),
+                    '日期': current_time.strftime("%Y-%m-%d"),
                     '收盤價': close_price,
                     '價格更新狀態': update_status
                 }
@@ -51,9 +50,10 @@ class StockPriceUpdater:
             logger.error(f"處理 {stock_id} 時發生錯誤: {e}")
             return None
 
-    def get_stock_prices(self) -> Optional[List[Dict]]:
+    def get_stock_prices(self, ignore_market_hours: bool = False) -> Optional[List[Dict]]:
         """獲取所有股票的最新價格並更新到 API"""
-        logger.info(f"開始執行股票價格更新任務: {datetime.now()}")
+        current_time = get_current_time()
+        logger.info(f"開始執行股票價格更新任務: {current_time}")
         
         # 獲取股票列表
         stock_list = self.api.get_stock_list()
@@ -67,17 +67,18 @@ class StockPriceUpdater:
             stock_name = stock['name']
             is_us_stock = not any(stock_name.endswith(suffix) for suffix in (TPE_SUFFIX, TWO_SUFFIX))
             
-            # 只在對應的交易時間更新相應市場的股票
-            if ((is_us_stock and self.market_checker.is_us_market_hours()) or 
-                (not is_us_stock and self.market_checker.is_tw_market_hours())):
+            # 根據 ignore_market_hours 決定是否檢查交易時間
+            if ignore_market_hours or (
+                (is_us_stock and self.market_checker.is_us_market_hours()) or 
+                (not is_us_stock and self.market_checker.is_tw_market_hours())
+            ):
                 result = self.process_single_stock(stock)
                 if result:
                     all_stock_data.append(result)
         
         # 顯示結果
         self.display_results(all_stock_data)
-        
-        logger.info(f"任務完成時間: {datetime.now()}")
+        logger.info(f"任務完成時間: {get_current_time()}")
         return all_stock_data
 
     @staticmethod

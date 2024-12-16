@@ -2,14 +2,15 @@ from typing import Optional, List, Dict
 import requests
 import pandas as pd
 from FinMind.data import DataLoader
-from datetime import datetime, timedelta
+from datetime import timedelta
 from config.constants import (
     FINMIND_API_URL, DATASETS, DATE_FORMAT,
     TWO_SUFFIX, TPE_SUFFIX
 )
 from config.settings import API_BASE_URL, FINMIND_TOKEN
-from utils.date_utils import TradingDateCalculator
 from utils.logger import get_logger
+from utils.time_utils import get_current_time
+from core.market import MarketTimeChecker
 
 logger = get_logger(__name__)
 
@@ -17,9 +18,10 @@ class StockAPI:
     def __init__(self):
         self.base_url = API_BASE_URL
         self.finmind_token = FINMIND_TOKEN
-        self.api = self._initialize_api()
+        self.market_checker = MarketTimeChecker()
+        self.api = self.initialize_api()  # 修正方法名稱，移除底線
 
-    def _initialize_api(self) -> Optional[DataLoader]:
+    def initialize_api(self) -> Optional[DataLoader]:
         """初始化 FinMind API"""
         if not self.finmind_token:
             logger.error("找不到 FINMIND_TOKEN 環境變數")
@@ -55,13 +57,28 @@ class StockAPI:
             logger.error(f"獲取股票列表失敗: {e}")
             return []
 
+    def update_stock_price(self, stock_id: str, price: float) -> bool:
+        """更新股票價格到 API"""
+        url = f"{self.base_url}/api/stocks/id/{stock_id}/price"
+        headers = {"Accept": "application/json"}
+        params = {"newPrice": price}
+        
+        try:
+            response = requests.put(url, headers=headers, params=params)
+            response.raise_for_status()
+            return True
+        except Exception as e:
+            logger.error(f"更新股票價格失敗: {e}")
+            return False
+
     def get_taiwan_stock_price(self, stock_id: str) -> Optional[float]:
         """獲取台股價格"""
         if not self.api:
             return None
             
-        end_date = datetime.now().strftime(DATE_FORMAT)
-        start_date = (datetime.now() - timedelta(days=5)).strftime(DATE_FORMAT)
+        current_time = get_current_time()
+        end_date = current_time.strftime(DATE_FORMAT)
+        start_date = (current_time - timedelta(days=5)).strftime(DATE_FORMAT)
         
         try:
             df = self.api.taiwan_stock_daily(
@@ -74,28 +91,26 @@ class StockAPI:
             logger.error(f"獲取台股 {stock_id} 價格失敗: {e}")
             return None
 
-    def get_us_stock_price(self, stock_id: str, is_trading_hours: bool) -> Optional[float]:
-        """獲取美股價格"""
+    def get_us_stock_price(self, stock_id: str) -> Optional[float]:
+        """獲取美股最新價格"""
         clean_stock_id = stock_id.split(':')[0]
         logger.info(f"正在獲取美股 {clean_stock_id} 的價格...")
         
-        # 根據交易時段選擇數據集
-        dataset = DATASETS['US_MINUTE'] if is_trading_hours else DATASETS['US_DAILY']
+        current_time = get_current_time()
         
-        # 獲取日期範圍
-        now = datetime.now()
+        is_trading_hours = self.market_checker.is_us_market_hours()
         if is_trading_hours:
-            if now.time() <= datetime.strptime("05:00", "%H:%M").time():
-                start_date = (now - timedelta(days=1)).strftime(DATE_FORMAT)
-            else:
-                start_date = now.strftime(DATE_FORMAT)
-            end_date = now.strftime(DATE_FORMAT)
+            logger.info("當前為美股交易時段，使用分鐘數據...")
+            dataset = DATASETS['US_MINUTE']
+            start_date = current_time.strftime(DATE_FORMAT)
+            end_date = start_date
         else:
-            end_date = TradingDateCalculator.get_last_us_trading_date()
-            start_date = end_date
-        
-        # 準備API參數
-        params = {
+            logger.info("當前為美股非交易時段，使用日線數據...")
+            dataset = DATASETS['US_DAILY']
+            end_date = current_time.strftime(DATE_FORMAT)
+            start_date = (current_time - timedelta(days=1)).strftime(DATE_FORMAT)
+
+        parameter = {
             "dataset": dataset,
             "data_id": clean_stock_id,
             "start_date": start_date,
@@ -104,7 +119,7 @@ class StockAPI:
         }
         
         try:
-            response = requests.get(FINMIND_API_URL, params=params)
+            response = requests.get(FINMIND_API_URL, params=parameter)
             response.raise_for_status()
             data = response.json()
             
@@ -127,17 +142,3 @@ class StockAPI:
         except Exception as e:
             logger.error(f"獲取美股價格失敗: {e}")
             return None
-
-    def update_stock_price(self, stock_id: str, price: float) -> bool:
-        """更新股票價格到 API"""
-        url = f"{self.base_url}/api/stocks/id/{stock_id}/price"
-        headers = {"Accept": "application/json"}
-        params = {"newPrice": price}
-        
-        try:
-            response = requests.put(url, headers=headers, params=params)
-            response.raise_for_status()
-            return True
-        except Exception as e:
-            logger.error(f"更新股票價格失敗: {e}")
-            return False
