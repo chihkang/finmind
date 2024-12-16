@@ -105,12 +105,26 @@ def get_stock_prices():
         print("沒有找到符合條件的股票")
         return None
     
-    # 處理每支股票
+    # 判斷當前市場時段
+    current_hour = datetime.now().hour
+    current_minute = datetime.now().minute
+    is_tw_market_hours = (
+        9 <= current_hour <= 13 and 
+        not (current_hour == 13 and current_minute > 35)
+    )
+    is_us_trading_hours = is_us_market_hours()
+    
+    # 分別處理台股和美股
     all_stock_data = []
     for stock in stock_list:
-        result = process_single_stock(api, stock)
-        if result:
-            all_stock_data.append(result)
+        stock_name = stock['name']
+        is_us_stock = not any(stock_name.endswith(suffix) for suffix in (':TPE', ':TWO'))
+        
+        # 只在對應的交易時間更新相應市場的股票
+        if (is_us_stock and is_us_trading_hours) or (not is_us_stock and is_tw_market_hours):
+            result = process_single_stock(api, stock)
+            if result:
+                all_stock_data.append(result)
     
     # 顯示結果
     display_results(all_stock_data)
@@ -249,9 +263,19 @@ def get_us_stock_price(api: DataLoader, stock_id: str) -> float:
     if is_trading_hours:
         print("當前為美股交易時段，使用分鐘數據...")
         dataset = "USStockPriceMinute"
-        # 使用當天數據
-        start_date = datetime.now().strftime("%Y-%m-%d")
-        end_date = start_date
+        
+        # 處理跨日情況
+        now = datetime.now()
+        current_time = now.time()
+        
+        # 如果現在是凌晨時段（00:00-05:00），使用前一天的日期
+        if current_time <= datetime.strptime("05:00", "%H:%M").time():
+            start_date = (now - timedelta(days=1)).strftime("%Y-%m-%d")
+        else:
+            start_date = now.strftime("%Y-%m-%d")
+            
+        end_date = now.strftime("%Y-%m-%d")  # 總是包含當前日期以確保獲取最新數據
+        
     else:
         print("當前為美股非交易時段，使用日線數據...")
         dataset = "USStockPrice"
@@ -315,7 +339,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(lifespan=lifespan)
 
 def init_scheduler():
-    """初始化排程器"""
+    """初始化排程器，分別設置台股和美股的更新排程"""
     # 台股排程 (台北時間 9:00-13:35)
     scheduler.add_job(
         get_stock_prices,
@@ -324,7 +348,8 @@ def init_scheduler():
         hour='9-13',
         minute='*/5',
         end_date=None,
-        timezone='Asia/Taipei'
+        timezone='Asia/Taipei',
+        id='tw_market_job'
     )
     
     scheduler.add_job(
@@ -334,7 +359,8 @@ def init_scheduler():
         hour='13',
         minute='30-35/5',
         end_date=None,
-        timezone='Asia/Taipei'
+        timezone='Asia/Taipei',
+        id='tw_market_closing_job'
     )
     
     # 獲取美股交易時間
@@ -352,7 +378,8 @@ def init_scheduler():
             hour=f'{start_hour}-23',
             minute=f'{start_minute}/5',
             end_date=None,
-            timezone='Asia/Taipei'
+            timezone='Asia/Taipei',
+            id='us_market_evening_job'
         )
     
     # 美股凌晨排程
@@ -364,7 +391,8 @@ def init_scheduler():
             hour=f'0-{end_hour}',
             minute='*/5',
             end_date=None,
-            timezone='Asia/Taipei'
+            timezone='Asia/Taipei',
+            id='us_market_morning_job'
         )
     
     scheduler.start()
