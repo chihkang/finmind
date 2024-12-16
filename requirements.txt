@@ -1,0 +1,8 @@
+fastapi==0.109.0
+uvicorn==0.25.0
+python-dotenv==1.0.0
+requests==2.31.0
+FinMind==1.7.5     # 實際可用的最新版本
+pandas==2.2.0
+APScheduler==3.10.4
+pytz==2023.3.post1
