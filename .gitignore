@@ -1,0 +1,57 @@
+# 虛擬環境
+venv/
+env/
+ENV/
+.env
+.venv
+finmind_env/
+
+# Python 編譯檔案
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# 發布和打包
+dist/
+build/
+*.egg-info/
+*.egg
+
+# IDE 配置
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# Jupyter Notebook
+.ipynb_checkpoints
+*.ipynb
+
+# 測試相關
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# 環境相關
+.env
+.env.local
+.env.*.local
+
+# 日誌文件
+*.log
+logs/
+
+# 本地開發文件
+local_settings.py
+db.sqlite3
+*.sqlite3
+
+# 其他常見忽略文件
+*.bak
+*.tmp
+*.temp
+.DS_Store
+Thumbs.db
