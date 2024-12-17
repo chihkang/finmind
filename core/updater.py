@@ -35,8 +35,7 @@ class StockPriceUpdater:
                 update_success = self.api.update_stock_price(
                     stock['_id'], close_price)
                 update_status = '更新成功' if update_success else '更新失敗'
-                logger.info(f"{'✓' if update_success else '✗'} {
-                            update_status}：{stock_id} 價格 {close_price}")
+                logger.info(f"{'[成功]' if update_success else '[失敗]'} {update_status}：{stock_id} 價格 {close_price}")
 
                 current_time = get_current_time()
                 return {
@@ -67,8 +66,7 @@ class StockPriceUpdater:
         if not stock_list:
             return None
 
-        all_stock_data = self._process_all_stocks(
-            stock_list, ignore_market_hours)
+        all_stock_data = self._process_all_stocks(stock_list, ignore_market_hours)
 
         self._log_task_completion(all_stock_data)
         return all_stock_data
@@ -118,17 +116,21 @@ class StockPriceUpdater:
         logger.info(f"任務完成時間: {get_current_time()}")
 
     @staticmethod
+    @staticmethod
     def display_results(stock_data: List[Dict]):
         """顯示更新結果"""
         if not stock_data:
             logger.warning("沒有獲取到任何股票資料")
             return
 
-        logger.info("\n股票最新報價:")
-        logger.info("-" * 80)
-        df_all = pd.DataFrame(stock_data)
-        pd.set_option('display.float_format', lambda x: '%.2f' % x)
-        pd.set_option('display.width', None)
-        pd.set_option('display.max_rows', None)
-        logger.info("\n" + df_all.to_string(index=False))
-        logger.info("-" * 80)
+        try:
+            logger.info("\n股票最新報價:")
+            logger.info("-" * 80)
+            df_all = pd.DataFrame(stock_data)
+            pd.set_option('display.float_format', lambda x: '%.2f' % x)
+            pd.set_option('display.width', None)
+            pd.set_option('display.max_rows', None)
+            logger.info("\n" + df_all.to_string(index=False))
+            logger.info("-" * 80)
+        except Exception as e:
+            logger.error(f"顯示結果時發生錯誤: {e}")
