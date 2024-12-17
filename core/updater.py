@@ -38,8 +38,7 @@ class StockPriceUpdater:
                 update_success = self.api.update_stock_price(stock["_id"], close_price)
                 update_status = "更新成功" if update_success else "更新失敗"
                 logger.info(
-                    f"{'[成功]' if update_success else '[失敗]'} {
-                        update_status}：{stock_id} 價格 {close_price}"
+                    f"{'[成功]' if update_success else '[失敗]'} {update_status}：{stock_id} 價格 {close_price}"
                 )
 
                 current_time = get_current_time()
