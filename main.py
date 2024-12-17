@@ -57,7 +57,7 @@ async def root():
 async def trigger_update():
     """手動觸發更新的端點"""
     logger.info(f"手動觸發更新開始，當前時間: {get_current_time()}")
-    data = updater.get_stock_prices()
+    data = updater.get_stock_prices(ignore_market_hours=True)  # 修改這裡
     return {"message": "更新完成", "data": data}
 
 if __name__ == "__main__":

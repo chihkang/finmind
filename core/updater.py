@@ -51,10 +51,14 @@ class StockPriceUpdater:
             return None
 
     def get_stock_prices(self, ignore_market_hours: bool = False) -> Optional[List[Dict]]:
-        """獲取所有股票的最新價格並更新到 API"""
+        """獲取所有股票的最新價格並更新到 API
+        
+        Args:
+            ignore_market_hours (bool): 是否忽略市場交易時間檢查，手動觸發時設為 True
+        """
         current_time = get_current_time()
         logger.info(f"開始執行股票價格更新任務: {current_time}")
-        
+    
         # 獲取股票列表
         stock_list = self.api.get_stock_list()
         if not stock_list:
@@ -67,14 +71,18 @@ class StockPriceUpdater:
             stock_name = stock['name']
             is_us_stock = not any(stock_name.endswith(suffix) for suffix in (TPE_SUFFIX, TWO_SUFFIX))
             
-            # 根據 ignore_market_hours 決定是否檢查交易時間
-            if ignore_market_hours or (
-                (is_us_stock and self.market_checker.is_us_market_hours()) or 
-                (not is_us_stock and self.market_checker.is_tw_market_hours())
-            ):
+            # 檢查是否在交易時間內，如果 ignore_market_hours 為 True 則跳過檢查
+            if ignore_market_hours:
+                logger.info(f"手動觸發更新，忽略市場交易時間檢查")
                 result = self.process_single_stock(stock)
                 if result:
                     all_stock_data.append(result)
+            else:
+                if (is_us_stock and self.market_checker.is_us_market_hours()) or \
+                (not is_us_stock and self.market_checker.is_tw_market_hours()):
+                    result = self.process_single_stock(stock)
+                    if result:
+                        all_stock_data.append(result)
         
         # 顯示結果
         self.display_results(all_stock_data)
