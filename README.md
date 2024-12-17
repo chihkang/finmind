@@ -21,7 +21,7 @@ A FastAPI-based application that automatically tracks and updates stock prices u
 
 1. Clone the repository:
 ```bash
-git clone [your-repository-url]
+git clone https://github.com/chihkang/finmind.git
 cd finmind
 ```
 
@@ -75,10 +75,9 @@ uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 
 ### API Endpoints
 
-- `GET /`: Health check endpoint
+- GET /: Health check endpoint
   - Returns current service status and timezone information
-
-- `GET /trigger`: Manual update trigger
+- GET /trigger: Manual update trigger
   - Manually triggers a stock price update regardless of market hours
 
 ### Scheduled Updates
@@ -99,10 +98,14 @@ The service automatically schedules updates based on market hours:
 ## Configuration
 
 Key configurations are managed through environment variables:
-- `FINMIND_TOKEN`: Your FinMind API token
-- `TZ`: Timezone setting (default: Asia/Taipei)
-- `HOST`: Server host address
-- `PORT`: Server port number
+- FINMIND_TOKEN: Your FinMind API token
+- TZ: Timezone setting (default: Asia/Taipei)
+- HOST: Server host address
+- PORT: Server port number
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## Contributing
 
@@ -111,30 +114,6 @@ Key configurations are managed through environment variables:
 3. Commit your changes
 4. Push to the branch
 5. Create a Pull Request
-
-## License
-
-MIT License
-
-Copyright (c) 2024 Chih Kang Lin
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
 
 ## Acknowledgments
 
