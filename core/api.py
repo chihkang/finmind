@@ -111,8 +111,7 @@ class StockAPI:
             logger.info("當前為美股非交易時段，使用日線數據...")
             dataset = DATASETS['US_DAILY']
             end_date = current_time.strftime(DATE_FORMAT)
-            start_date = (current_time - timedelta(days=5)
-                          ).strftime(DATE_FORMAT)
+            start_date = (current_time - timedelta(days=5)).strftime(DATE_FORMAT)
 
         parameter = {
             "dataset": dataset,
@@ -144,8 +143,7 @@ class StockAPI:
             latest_price = df.iloc[0][price_column]
             latest_date = df.iloc[0]['date']
 
-            logger.info(f"獲取到 {clean_stock_id} 在 {
-                        latest_date} 的收盤價: {latest_price}")
+            logger.info(f"獲取到 {clean_stock_id} 在 {latest_date} 的收盤價: {latest_price}")
             return latest_price
 
         except Exception as e:

@@ -25,6 +25,7 @@ logger.info(f"系統時間: {system_time}")
 logger.info(f"設定後的台北時間: {current_time}")
 logger.info(f"環境變數TZ: {os.getenv('TZ')}")
 
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """處理應用程式的生命週期事件"""
@@ -34,14 +35,15 @@ async def lifespan(app: FastAPI):
     scheduler.setup_us_market_jobs(updater.get_stock_prices, market_hours)
     scheduler.start()
     logger.info(f"應用程式啟動完成，當前時間: {get_current_time()}")
-    
+
     yield
-    
+
     # 關閉時執行
     scheduler.shutdown()
     logger.info("應用程式已關閉")
 
 app = FastAPI(lifespan=lifespan)
+
 
 @app.get("/")
 async def root():
@@ -52,6 +54,7 @@ async def root():
         "current_time": current_time.strftime("%Y-%m-%d %H:%M:%S %Z"),
         "timezone": str(current_time.tzinfo)
     }
+
 
 @app.get("/trigger")
 async def trigger_update():
