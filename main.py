@@ -42,6 +42,7 @@ async def lifespan(app: FastAPI):
     scheduler.shutdown()
     logger.info("應用程式已關閉")
 
+
 app = FastAPI(lifespan=lifespan)
 
 
@@ -52,7 +53,7 @@ async def root():
     return {
         "status": "running",
         "current_time": current_time.strftime("%Y-%m-%d %H:%M:%S %Z"),
-        "timezone": str(current_time.tzinfo)
+        "timezone": str(current_time.tzinfo),
     }
 
 
@@ -62,6 +63,7 @@ async def trigger_update():
     logger.info(f"手動觸發更新開始，當前時間: {get_current_time()}")
     data = updater.get_stock_prices(ignore_market_hours=True)  # 修改這裡
     return {"message": "更新完成", "data": data}
+
 
 if __name__ == "__main__":
     uvicorn.run(app, host=HOST, port=PORT)

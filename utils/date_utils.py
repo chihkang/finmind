@@ -1,14 +1,16 @@
 from datetime import timedelta
 from config.constants import DATE_FORMAT
+
 # 在所有需要使用時間的模組中
 from utils.time_utils import get_current_time
+
 
 class TradingDateCalculator:
     @staticmethod
     def get_last_us_trading_date() -> str:
         """獲取上一個美股交易日的日期"""
         now = get_current_time()
-        
+
         # 如果是週一，回傳上週五的日期
         if now.weekday() == 0:
             last_trading_date = now - timedelta(days=3)
@@ -18,7 +20,7 @@ class TradingDateCalculator:
         # 其他情況回傳前一天
         else:
             last_trading_date = now - timedelta(days=1)
-        
+
         return last_trading_date.strftime(DATE_FORMAT)
 
     @staticmethod
