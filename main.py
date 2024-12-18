@@ -65,5 +65,33 @@ async def trigger_update():
     return {"message": "更新完成", "data": data}
 
 
+@app.get("/test_minute/{stock_id}")
+async def test_minute_data(stock_id: str):
+    """測試美股分鐘數據的端點
+
+    Args:
+        stock_id: 股票代碼，例如 "NVDA"
+
+    Returns:
+        JSON 格式的分鐘數據
+    """
+    logger.info(f"收到測試分鐘數據請求，股票代碼: {stock_id}")
+
+    try:
+        data = updater.api.get_us_stock_minute_price(stock_id)
+        if not data:
+            return {"status": "error", "message": "無法獲取數據"}
+
+        return {
+            "status": "success",
+            "message": f"成功獲取 {stock_id} 的分鐘數據",
+            "data": data,
+        }
+
+    except Exception as e:
+        logger.error(f"處理請求時發生錯誤: {str(e)}")
+        return {"status": "error", "message": f"處理請求時發生錯誤: {str(e)}"}
+
+
 if __name__ == "__main__":
     uvicorn.run(app, host=HOST, port=PORT)
