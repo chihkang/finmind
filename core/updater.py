@@ -91,7 +91,15 @@ class StockPriceUpdater:
         return stock_list
 
     def _should_process_stock(self, stock: Dict, ignore_market_hours: bool) -> bool:
-        """判斷是否應該處理該股票"""
+        """判斷是否應該處理該股票
+
+        Args:
+            stock: 股票資訊
+            ignore_market_hours: 是否忽略市場交易時間檢查
+
+        Returns:
+            bool: 是否應該處理此股票
+        """
         if ignore_market_hours:
             logger.info("手動觸發更新，忽略市場交易時間檢查")
             return True
@@ -101,9 +109,20 @@ class StockPriceUpdater:
             stock_name.endswith(suffix) for suffix in (TPE_SUFFIX, TWO_SUFFIX)
         )
 
-        return (is_us_stock and self.market_checker.is_us_market_hours()) or (
-            not is_us_stock and self.market_checker.is_tw_market_hours()
-        )
+        is_us_market_open = self.market_checker.is_us_market_hours()
+        is_tw_market_open = self.market_checker.is_tw_market_hours()
+
+        # 美股交易時段只更新美股
+        if is_us_market_open and is_us_stock:
+            logger.info(f"美股交易時段，處理美股 {stock['name']}")
+            return True
+
+        # 台股交易時段只更新台股
+        if is_tw_market_open and not is_us_stock:
+            logger.info(f"台股交易時段，處理台股 {stock['name']}")
+            return True
+
+        return False
 
     def _process_all_stocks(
         self, stock_list: List[Dict], ignore_market_hours: bool
